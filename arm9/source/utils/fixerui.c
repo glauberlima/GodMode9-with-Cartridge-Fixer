@@ -17,18 +17,21 @@
 #define Y_BAR            42
 #define Y_COUNTS         58
 #define Y_FLAGS          70
-#define Y_SEP1           82
-#define Y_ELAPSED        90
-#define Y_SEP2           102
-#define Y_HELP1          114
-#define Y_HELP2          126
-#define Y_HELP3          138
+#define Y_LIMITS         82
+#define Y_SEP1           94
+#define Y_ELAPSED        102
+#define Y_SEP2           114
+#define Y_HELP1          126
+#define Y_HELP2          138
+#define Y_HELP3          150
 
 static bool ui_active = false;
 static FixerUiPhase ui_phase = FIXERUI_PHASE_IDLE;
 static u32 ui_sub_cur = 0, ui_sub_total = 0;
 static u32 ui_fixed = 0, ui_bad = 0;
 static bool ui_autoskip = false, ui_log = false, ui_refresh_read = false;
+static u32 ui_retry = FIXER_CFG_DEFAULT_RETRIES;
+static u32 ui_stuck = FIXER_CFG_DEFAULT_STUCK;
 
 static u64 ui_start = 0;
 static u64 ui_last_hb = 0;
@@ -43,6 +46,7 @@ static char c_phase[64] = { 0 };
 static char c_sub[64] = { 0 };
 static char c_counts[64] = { 0 };
 static char c_flags[64] = { 0 };
+static char c_limits[64] = { 0 };
 static char c_elapsed[64] = { 0 };
 static char c_status[64] = { 0 };
 
@@ -106,12 +110,14 @@ void FixerUI_Begin(const char* path) {
     ui_sub_cur = ui_sub_total = 0;
     ui_fixed = ui_bad = 0;
     ui_autoskip = ui_log = ui_refresh_read = false;
+    ui_retry = FIXER_CFG_DEFAULT_RETRIES;
+    ui_stuck = FIXER_CFG_DEFAULT_STUCK;
     ui_start = ui_last_hb = timer_start();
     ui_last_draw = 0; // force the first Tick to draw immediately
     ui_spin = 0;
     ui_tick_ms = ui_max_tick_ms = 0;
     ui_bar_pct = 0xFFFFFFFFu;
-    c_phase[0] = c_sub[0] = c_counts[0] = c_flags[0] = c_elapsed[0] = c_status[0] = 0;
+    c_phase[0] = c_sub[0] = c_counts[0] = c_flags[0] = c_limits[0] = c_elapsed[0] = c_status[0] = 0;
 
     ClearScreen(ALT_SCREEN, COLOR_STD_BG);
     draw_static();
@@ -142,6 +148,11 @@ void FixerUI_SetFlags(bool autoskip, bool log, bool refresh_every_read) {
     ui_autoskip = autoskip;
     ui_log = log;
     ui_refresh_read = refresh_every_read;
+}
+
+void FixerUI_SetLimits(u32 retry, u32 stuck) {
+    ui_retry = retry;
+    ui_stuck = stuck;
 }
 
 void FixerUI_Heartbeat(void) {
@@ -175,6 +186,8 @@ void FixerUI_Tick(void) {
     draw_cached(4, Y_COUNTS, COLOR_STD_FONT, c_counts, "FIXED %u   UNFIXABLE %u", (unsigned) ui_fixed, (unsigned) ui_bad);
     draw_cached(4, Y_FLAGS, COLOR_LIGHTGREY, c_flags, "Autoskip[%s] Log[%s] Refresh[%s]",
         ui_autoskip ? "ON" : "OFF", ui_log ? "ON" : "OFF", ui_refresh_read ? "ON" : "OFF");
+    draw_cached(4, Y_LIMITS, COLOR_LIGHTGREY, c_limits, "Retry %u   Stuck %u",
+        (unsigned) ui_retry, (unsigned) ui_stuck);
 
     static const char spin_chars[] = "|/-\\";
     draw_cached(4, Y_ELAPSED, COLOR_STD_FONT, c_elapsed, "ELAPSED %02u:%02u:%02u  idle %us  %c",

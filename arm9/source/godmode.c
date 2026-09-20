@@ -9,6 +9,7 @@
 #include "touchcal.h"
 #include "fs.h"
 #include "utils.h"
+#include "fixerui.h"
 #include "nand.h"
 #include "gamecart.h"
 #include "virtual.h"
@@ -1629,30 +1630,23 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             return 0;
         }
 
-        bool log = false;
-        bool autoskip = false;
-        
-        bool YHeld = CheckButton(BUTTON_Y);
-        bool XHeld = CheckButton(BUTTON_X);
-        bool SelectHeld = CheckButton(BUTTON_SELECT);
+        // Defaults, then apply the old hold-key shortcuts as pre-sets; the
+        // pre-flight screen below is authoritative and shows the result.
+        fixer_cfg.autoskip = false;
+        fixer_cfg.log = false;
+        fixer_cfg.refresh_every_read = false;
+        fixer_cfg.retries_before_skip = FIXER_CFG_DEFAULT_RETRIES;
+        fixer_cfg.stuck_limit = FIXER_CFG_DEFAULT_STUCK;
+        if (CheckButton(BUTTON_Y)) fixer_cfg.log = true;
+        if (CheckButton(BUTTON_X)) fixer_cfg.autoskip = true;
+        if (CheckButton(BUTTON_SELECT)) fixer_cfg.refresh_every_read = true;
 
-        if (YHeld) {
-            ShowPrompt(false, "Logging has been turned on.");
-            log = true;
-        }
-        if (XHeld) {
-            ShowPrompt(false, "Autoskip is on.");
-            autoskip = true;
-        }
+        if (!FixerUI_Preflight(file_path, &fixer_cfg))
+            return 0;
 
-        if (SelectHeld) {
-            if (ShowPrompt(true, "This will run refresh on EVERY read.\nOnly use this option for broken cartridges.\nAre you SURE you want to do this?"))
-                refresh_call_every = 0;
-            else
-                return 0;
-        }
+        refresh_call_every = fixer_cfg.refresh_every_read ? 0 : 10000;
 
-        u32 fixres = AttemptFixNcsdFile(file_path, log, autoskip);
+        u32 fixres = AttemptFixNcsdFile(file_path, fixer_cfg.log, fixer_cfg.autoskip);
         if (fixres == 0) {
             if (!bad_chunks)
                 ShowPrompt(false, "Finished.\n\n%d fixed chunks,\n0 unfixable chunks.\n\nRun verify.", fixed_chunks);

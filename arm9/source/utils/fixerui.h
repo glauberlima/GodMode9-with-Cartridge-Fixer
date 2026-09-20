@@ -28,6 +28,7 @@ void FixerUI_SetPhase(FixerUiPhase phase);
 void FixerUI_SetSub(u32 cur, u32 total);
 void FixerUI_SetCounts(u32 fixed, u32 bad);
 void FixerUI_SetFlags(bool autoskip, bool log, bool refresh_every_read);
+void FixerUI_SetLimits(u32 retry, u32 stuck);
 void FixerUI_Heartbeat(void);
 void FixerUI_Tick(void);
 u32  FixerUI_MaxTickMs(void);

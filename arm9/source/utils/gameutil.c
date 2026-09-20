@@ -1250,6 +1250,7 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
 
     FixerUI_Begin(path);
     FixerUI_SetFlags(autoskip, log, refresh_call_every == 0);
+    FixerUI_SetLimits(fixer_cfg.retries_before_skip, fixer_cfg.stuck_limit);
     FixerUI_SetCounts(0, 0);
 
     char* dumpstr = NULL;
