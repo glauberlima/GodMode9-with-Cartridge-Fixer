@@ -121,7 +121,8 @@ void FixerUI_Begin(const char* path) {
 
     ClearScreen(ALT_SCREEN, COLOR_STD_BG);
     draw_static();
-    FixerUI_Tick();
+    // The caller sets flags/limits/counts right after Begin and then calls
+    // FixerUI_Tick(); drawing here would show stale defaults for one frame.
 }
 
 void FixerUI_End(void) {
