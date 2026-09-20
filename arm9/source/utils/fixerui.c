@@ -105,7 +105,8 @@ void FixerUI_Begin(const char* path) {
     ui_sub_cur = ui_sub_total = 0;
     ui_fixed = ui_bad = 0;
     ui_autoskip = ui_log = ui_refresh_read = false;
-    ui_start = ui_last_hb = ui_last_draw = timer_start();
+    ui_start = ui_last_hb = timer_start();
+    ui_last_draw = 0; // force the first Tick to draw immediately
     ui_spin = 0;
     ui_tick_ms = ui_max_tick_ms = 0;
     ui_bar_pct = 0xFFFFFFFFu;
