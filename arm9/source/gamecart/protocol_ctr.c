@@ -244,5 +244,8 @@ bool CTR_SendCommand(const u32 command[4], u32 pageSize, u32 blocks, u32 latency
     }
 #endif
 
-    return !timed_out && (count == transferLength);
+    // Only a genuine stall (watchdog) counts as a failure. A short/early-cleared
+    // transfer is the pre-existing "pull CS high" case that the original code
+    // always treated as success; flagging it broke secure-init and verify.
+    return !timed_out;
 }
