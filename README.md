@@ -136,11 +136,21 @@ If verification persistently fails, **try leaving the cartridge inserted into th
 
 ## Options
 
-When selecting **Fix cartridge corruption** buttons can be held to adjust the fixer behaviour:
+Selecting **Fix cartridge corruption** opens a pre-flight screen where the behaviour is configured:
 
-- Hold X to automatically skip chunks after 500 retries.
-- Hold Y to save a log of unfixable blocks to SD card
-- Hold SELECT to perform a refresh on every block read (not recommended)
+- **Autoskip bad blocks** - automatically skip a block once the retry limit is reached.
+- **Write fix report** - save a log of fixed/unfixable blocks to `gm9/out/fix_report_*.txt`.
+- **Refresh on every read** - perform a refresh on every block read (not recommended; very slow).
+- **Retry limit** - re-reads before a block is offered for skipping (or auto-skipped). Presets:
+  100 (Fast), 250, 500 (Default), 1000 (Patient), 2500 (Very patient), 10000 (Extreme).
+- **Stuck limit** - identical failed reads before a block is declared unfixable. Presets:
+  25, 50 (Default), 100, 200.
+
+Controls: **UP/DOWN** select, **LEFT/RIGHT** change/toggle, **A** start, **B** cancel,
+**X** reset to defaults. As a shortcut, holding **X**, **Y** or **SELECT** while choosing the
+option pre-sets Autoskip, Write fix report or Refresh on every read respectively; the pre-flight
+screen is authoritative and shows the resulting settings. During the fix, **B** cancels the current
+block and holding **Y** skips a block once the retry limit is exceeded.
 
 ## Tracking Repair Progress
 
