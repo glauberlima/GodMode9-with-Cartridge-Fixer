@@ -161,7 +161,7 @@ Compare the number after each repair pass:
    - If the number of bad blocks decreases after each run, the cartridge is improving. Continue the repair process.
    - If the number of bad blocks does not decrease after **2–3 attempts**, those blocks are likely permanent and probably will not improve with additional runs.
 
-1. You can also track this by holding **Y** while selecting:
+1. Enable **Write fix report** in the pre-flight screen (or hold **Y** while selecting) to log progress:
 
    ```text
    Fix cartridge corruption
@@ -175,9 +175,9 @@ Compare the number after each repair pass:
 
 <b>This will take a while. As in, it can take more than a day for heavily corrupted carts. You can close the 3DS while this is happening.</b><br>​ The time it takes to restore a cartridge depends on how corrupted it is. The ETA shown in the program assumes all blocks will pass on first try - it does not show how long the fixing will actually take. You will also likely have to run the process multiple times before it fully stabilises - each subsequent run should take less time, though.
 
-As long as the "Current hash" value is changing, the program is doing its thing. If "Current hash" stops updating, the refresh function has stopped working and that block will be skipped after 20 tries without change. You can try to use the SELECT mode to see if it helps that block recover. 
+As long as the "Current hash" value is changing, the program is doing its thing. If "Current hash" stops updating, the refresh function has stopped working and that block will be skipped after the **Stuck limit** without change (default 50). You can try enabling **Refresh on every read** in the pre-flight screen to see if it helps that block recover. 
 
-There is a possibility that a block will never fix itself despite 'current hash' continuing to update - after 500 retries, an option to skip fixing the current chunk (by holding Y) is provided. That being said, it can take much more than 500 retries to fix a chunk, so only skip the chunk if you're sure it's stuck.
+There is a possibility that a block will never fix itself despite 'current hash' continuing to update - after the configured **Retry limit** (default 500), an option to skip fixing the current chunk (by holding Y) is provided. That being said, it can take many more retries to fix a chunk, so only skip the chunk if you're sure it's stuck.
 
 <b>Though not proven, I am not sure that simply inserting the cartridge into the console ocassionally is enough to preserve its longevity: to be safe, I think the console should actually go through all the data blocks at least once. Running the GodMode9 verify function periodically (every couple years or so) should extend the cartridge's longevity.</b>
 
