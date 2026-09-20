@@ -1630,16 +1630,13 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             return 0;
         }
 
-        // Defaults, then apply the old hold-key shortcuts as pre-sets; the
-        // pre-flight screen below is authoritative and shows the result.
+        // Start from the built-in defaults; the pre-flight screen is the single
+        // source of truth for the fixer settings.
         fixer_cfg.autoskip = false;
         fixer_cfg.log = false;
         fixer_cfg.refresh_every_read = false;
         fixer_cfg.retries_before_skip = FIXER_CFG_DEFAULT_RETRIES;
         fixer_cfg.stuck_limit = FIXER_CFG_DEFAULT_STUCK;
-        if (CheckButton(BUTTON_Y)) fixer_cfg.log = true;
-        if (CheckButton(BUTTON_X)) fixer_cfg.autoskip = true;
-        if (CheckButton(BUTTON_SELECT)) fixer_cfg.refresh_every_read = true;
 
         if (!FixerUI_Preflight(file_path, &fixer_cfg))
             return 0;

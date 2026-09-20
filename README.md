@@ -147,10 +147,8 @@ Selecting **Fix cartridge corruption** opens a pre-flight screen where the behav
   25, 50 (Default), 100, 200.
 
 Controls: **UP/DOWN** select, **LEFT/RIGHT** change/toggle, **A** start, **B** cancel,
-**X** reset to defaults. As a shortcut, holding **X**, **Y** or **SELECT** while choosing the
-option pre-sets Autoskip, Write fix report or Refresh on every read respectively; the pre-flight
-screen is authoritative and shows the resulting settings. During the fix, **B** cancels the current
-block and holding **Y** skips a block once the retry limit is exceeded.
+**X** reset to defaults. During the fix, **B** cancels the current block and holding **Y** skips a
+block once the retry limit is exceeded.
 
 ## Tracking Repair Progress
 
