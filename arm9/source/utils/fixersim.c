@@ -156,6 +156,10 @@ int FixerSim_FilterRead(int fr, void* buffer, u32 size, u64 abs_offset) {
     if (!FixerSim_Enabled())
         return fr;
 
+    // Never mask a real read error with simulated corruption.
+    if (fr != 0)
+        return fr;
+
     // byte range of this read overlapping the configured fault range?
     if ((abs_offset + size <= sim_offset) || (abs_offset >= sim_offset + sim_size))
         return fr;
