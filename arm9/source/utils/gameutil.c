@@ -36,9 +36,13 @@ static bool cart_stopped = false;
 
 extern int refresh_call_every;
 
-// End of the fix-report buffer while logging (NULL otherwise). Makes appends
-// stop cleanly instead of running past the allocation.
+// Fix-report bounds while logging (NULL otherwise). `log_end` is the append
+// limit (a small tail is reserved for a truncation marker); `log_hard_end` is
+// the true end of the buffer (the NUL slot). Appends stop cleanly instead of
+// running past the allocation.
 static char* log_end = NULL;
+static char* log_hard_end = NULL;
+static bool log_truncated = false;
 
 static void log_append(char** wstr, const char* fmt, ...) {
     if (!wstr || !*wstr || !log_end)
@@ -52,9 +56,10 @@ static void log_append(char** wstr, const char* fmt, ...) {
     va_end(ap);
     if (n < 0)
         return;
-    if ((size_t) n >= avail)
-        *wstr = log_end; // truncated: stop appending
-    else
+    if ((size_t) n >= avail) {
+        *wstr = log_end;
+        log_truncated = true; // stop appending
+    } else
         *wstr += n;
 }
 
@@ -1239,11 +1244,13 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
 
     char* dumpstr = NULL;
     char* wstr = NULL;
-    log_end = NULL;
+    log_end = log_hard_end = NULL;
+    log_truncated = false;
     if (log) {
         dumpstr = malloc(STD_BUFFER_SIZE);
         if (!dumpstr) { FixerUI_End(); return 1; }
-        log_end = dumpstr + STD_BUFFER_SIZE - 1;
+        log_hard_end = dumpstr + STD_BUFFER_SIZE - 1;
+        log_end = log_hard_end - 24; // reserve room for the truncation marker
         wstr = dumpstr;
         log_append(&wstr, "CORRUPTION FIX LOG ON %s\n", path);
     }
@@ -1276,6 +1283,13 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
     if (log) {
         log_append(&wstr, "ui_max_tick_ms=%u\n", (unsigned) FixerUI_MaxTickMs());
 
+        // Mark a truncated report instead of ending on a NUL byte mid-line.
+        if (log_truncated && (log_hard_end - wstr >= 16)) {
+            memcpy(wstr, "\n[truncated]\n", 13);
+            wstr += 13;
+            *wstr = 0;
+        }
+
         DsTime dstime;
         get_dstime(&dstime);
 
@@ -1291,7 +1305,8 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
         FileSetData(fileout, dumpstr, wstr - dumpstr, 0, true);
 
         free(dumpstr);
-        log_end = NULL;
+        log_end = log_hard_end = NULL;
+        log_truncated = false;
     }
 
     FixerUI_End();
