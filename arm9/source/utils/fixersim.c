@@ -23,7 +23,7 @@
 //   fail      - report a read error for the range (simulates a dead cartridge)
 //   slow      - wait `delay_ms`, then report a read error
 #define SIM_CFG_PATH OUTPUT_PATH "/fixer_sim.cfg"
-#define SIM_CFG_MAX  512
+#define SIM_CFG_MAX  2048
 
 typedef enum {
     SIM_OFF = 0,
