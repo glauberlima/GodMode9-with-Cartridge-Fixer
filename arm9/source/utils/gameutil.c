@@ -1284,10 +1284,15 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
         log_append(&wstr, "ui_max_tick_ms=%u\n", (unsigned) FixerUI_MaxTickMs());
 
         // Mark a truncated report instead of ending on a NUL byte mid-line.
-        if (log_truncated && (log_hard_end - wstr >= 16)) {
-            memcpy(wstr, "\n[truncated]\n", 13);
-            wstr += 13;
-            *wstr = 0;
+        // On truncation wstr == log_end and vsnprintf's NUL sits at log_end-1,
+        // so start one byte earlier to overwrite that NUL.
+        if (log_truncated) {
+            char* p = (wstr > dumpstr) ? (wstr - 1) : wstr;
+            if (log_hard_end - p >= 16) {
+                memcpy(p, "\n[truncated]\n", 13);
+                wstr = p + 13;
+                *wstr = 0;
+            }
         }
 
         DsTime dstime;
