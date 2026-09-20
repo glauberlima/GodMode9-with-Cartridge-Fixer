@@ -27,4 +27,7 @@ u32 InjectHealthAndSafety(const char* path, const char* destdrv);
 u32 BuildTitleKeyInfo(const char* path, bool dec, bool dump);
 u32 BuildSeedInfo(const char* path, bool dump);
 u32 GetGoodName(char* name, const char* path, bool quick);
+// Returned by AttemptFixNcsdFile when the cartridge stopped responding. Chosen so
+// it can never collide with the per-region result bits (which are 0..7).
+#define FIXRES_CART_STOPPED 0xFFFFFFFFu
 u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip);

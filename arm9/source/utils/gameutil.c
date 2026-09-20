@@ -1220,7 +1220,7 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
         wstr += sprintf(wstr, "CORRUPTION FIX LOG ON %s\n", path);
     }
 
-    int ret = 0;
+    u32 ret = 0;
     // validate NCSD contents
     for (u32 i = 0; i < 8; i++) {
         NcchPartition* partition = ncsd.partitions + i;
@@ -1234,7 +1234,7 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
 
         if (cart_stopped) {
             ShowPrompt(false, "%s\nCartridge stopped responding.\nIt may be failing or dead.\nReseat it and try again.", pathstr);
-            ret = 3;
+            ret = FIXRES_CART_STOPPED;
             break;
         } else if (ret == 2) {
             ShowPrompt(false, "Fix failed. Essential parts of the image are bad.\nTry the following: select this file again,\nhold SELECT and try to copy to gm/out.\nRun this again afterwards.");

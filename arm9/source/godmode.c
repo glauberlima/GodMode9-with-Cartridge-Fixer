@@ -1659,7 +1659,7 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             else
                 ShowPrompt(false, "Finished.\n\n%d fixed chunks,\n%d unfixable chunks.", fixed_chunks, bad_chunks);
         }
-        else if (fixres == 3) {
+        else if (fixres == FIXRES_CART_STOPPED) {
             // "cartridge stopped responding" message was already shown
         }
         else
