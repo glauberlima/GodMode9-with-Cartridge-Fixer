@@ -1,9 +1,14 @@
 #pragma once
 
 #include "common.h"
+#include "gameutil.h"
 
 // Dashboard for the cartridge fixer, rendered on ALT_SCREEN (the screen the
 // fixer/progress UI does not use). Renders incrementally and is time-throttled.
+
+// Modal pre-flight screen: shows instructions and lets the user configure
+// FixerConfig. Returns true to start, false if cancelled.
+bool FixerUI_Preflight(const char* path, FixerConfig* cfg);
 
 typedef enum {
     FIXERUI_PHASE_IDLE = 0,

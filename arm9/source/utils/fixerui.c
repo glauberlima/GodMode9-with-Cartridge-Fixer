@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 #include "ui.h"
+#include "hid.h"
 #include "timer.h"
 
 #define UI_W             SCREEN_WIDTH_ALT
@@ -190,4 +191,117 @@ void FixerUI_Tick(void) {
 
     ui_tick_ms = (u32) timer_msec(tick_start);
     if (ui_tick_ms > ui_max_tick_ms) ui_max_tick_ms = ui_tick_ms;
+}
+
+// ---------------------------------------------------------------------------
+// Pre-flight screen
+// ---------------------------------------------------------------------------
+
+#define PF_ROWS 5
+
+static int preset_index(const u32* arr, int n, u32 val) {
+    for (int i = 0; i < n; i++)
+        if (arr[i] == val) return i;
+    int best = 0;
+    u32 bestd = (val > arr[0]) ? (val - arr[0]) : (arr[0] - val);
+    for (int i = 1; i < n; i++) {
+        u32 d = (val > arr[i]) ? (val - arr[i]) : (arr[i] - val);
+        if (d < bestd) { bestd = d; best = i; }
+    }
+    return best;
+}
+
+bool FixerUI_Preflight(const char* path, FixerConfig* cfg) {
+    static const u32 retry_presets[] = { 100, 250, 500, 1000, 2500, 10000 };
+    static const char* retry_labels[] = { "Fast", "", "Default", "Patient", "Very patient", "Extreme" };
+    static const u32 stuck_presets[] = { 25, 50, 100, 200 };
+    static const char* stuck_labels[] = { "", "Default", "", "" };
+    const int n_retry = (int) (sizeof(retry_presets) / sizeof(retry_presets[0]));
+    const int n_stuck = (int) (sizeof(stuck_presets) / sizeof(stuck_presets[0]));
+    const u32 lh = GetFontHeight() + 2;
+    const int x = 4;
+
+    char buf[96];
+    char pathstr[UTF_BUFFER_BYTESIZE(40)];
+    TruncateString(pathstr, path, 40, 8);
+
+    int retry_idx = preset_index(retry_presets, n_retry, cfg->retries_before_skip);
+    int stuck_idx = preset_index(stuck_presets, n_stuck, cfg->stuck_limit);
+    int sel = 0;
+    bool start = false;
+
+    while (true) {
+        int y = 2;
+        ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
+        DrawString(MAIN_SCREEN, "FIX CARTRIDGE CORRUPTION", x, y, COLOR_STD_FONT, COLOR_STD_BG); y += lh;
+        DrawString(MAIN_SCREEN, pathstr, x, y, COLOR_LIGHTGREY, COLOR_STD_BG); y += lh + 4;
+
+        bool on[3] = { cfg->autoskip, cfg->log, cfg->refresh_every_read };
+        const char* blabel[3] = { "Autoskip bad blocks", "Write fix report", "Refresh on every read" };
+        for (int r = 0; r < 3; r++) {
+            snprintf(buf, sizeof(buf), "%s[%c] %s", (sel == r) ? "> " : "  ", on[r] ? 'x' : ' ', blabel[r]);
+            DrawString(MAIN_SCREEN, buf, x, y, (sel == r) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG);
+            y += lh;
+        }
+        if (*retry_labels[retry_idx])
+            snprintf(buf, sizeof(buf), "%sRetry limit before skip    < %u (%s) >",
+                (sel == 3) ? "> " : "  ", (unsigned) retry_presets[retry_idx], retry_labels[retry_idx]);
+        else
+            snprintf(buf, sizeof(buf), "%sRetry limit before skip    < %u >",
+                (sel == 3) ? "> " : "  ", (unsigned) retry_presets[retry_idx]);
+        DrawString(MAIN_SCREEN, buf, x, y, (sel == 3) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG);
+        y += lh;
+        if (*stuck_labels[stuck_idx])
+            snprintf(buf, sizeof(buf), "%sStuck retry limit          < %u (%s) >",
+                (sel == 4) ? "> " : "  ", (unsigned) stuck_presets[stuck_idx], stuck_labels[stuck_idx]);
+        else
+            snprintf(buf, sizeof(buf), "%sStuck retry limit          < %u >",
+                (sel == 4) ? "> " : "  ", (unsigned) stuck_presets[stuck_idx]);
+        DrawString(MAIN_SCREEN, buf, x, y, (sel == 4) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG);
+        y += lh + 4;
+
+        const char* h1 = "";
+        const char* h2 = "";
+        switch (sel) {
+            case 0: h1 = "Skip a bad block automatically once the retry"; h2 = "limit below is reached (otherwise you get a prompt)."; break;
+            case 1: h1 = "Write gm9/out/fix_report_*.txt listing the"; h2 = "offsets of fixed and unfixable blocks."; break;
+            case 2: h1 = "Send a cartridge refresh on EVERY read. Much"; h2 = "slower; only for badly broken cartridges."; break;
+            case 3: h1 = "Re-reads before offering to skip. With autoskip"; h2 = "ON it skips automatically at this limit."; break;
+            case 4: h1 = "Identical failed reads before a block is"; h2 = "declared unfixable."; break;
+        }
+        DrawRectangle(MAIN_SCREEN, 0, y, SCREEN_WIDTH_MAIN, 1, COLOR_DARKGREY); y += 3;
+        DrawString(MAIN_SCREEN, h1, x, y, COLOR_LIGHTGREY, COLOR_STD_BG); y += lh;
+        DrawString(MAIN_SCREEN, h2, x, y, COLOR_LIGHTGREY, COLOR_STD_BG); y += lh + 4;
+
+        DrawString(MAIN_SCREEN, "UP/DOWN select    LEFT/RIGHT change", x, y, COLOR_STD_FONT, COLOR_STD_BG); y += lh;
+        DrawString(MAIN_SCREEN, "A start     B cancel     X reset defaults", x, y, COLOR_STD_FONT, COLOR_STD_BG);
+
+        u32 pad = InputWait(0);
+        if (pad & BUTTON_UP) sel = (sel + PF_ROWS - 1) % PF_ROWS;
+        else if (pad & BUTTON_DOWN) sel = (sel + 1) % PF_ROWS;
+        else if (pad & (BUTTON_LEFT | BUTTON_RIGHT)) {
+            int dir = (pad & BUTTON_RIGHT) ? 1 : -1;
+            switch (sel) {
+                case 0: cfg->autoskip = !cfg->autoskip; break;
+                case 1: cfg->log = !cfg->log; break;
+                case 2: cfg->refresh_every_read = !cfg->refresh_every_read; break;
+                case 3: retry_idx = (retry_idx + dir + n_retry) % n_retry; cfg->retries_before_skip = retry_presets[retry_idx]; break;
+                case 4: stuck_idx = (stuck_idx + dir + n_stuck) % n_stuck; cfg->stuck_limit = stuck_presets[stuck_idx]; break;
+            }
+        }
+        else if (pad & BUTTON_A) { start = true; break; }
+        else if (pad & BUTTON_B) { start = false; break; }
+        else if (pad & BUTTON_X) {
+            cfg->autoskip = false;
+            cfg->log = false;
+            cfg->refresh_every_read = false;
+            cfg->retries_before_skip = FIXER_CFG_DEFAULT_RETRIES;
+            cfg->stuck_limit = FIXER_CFG_DEFAULT_STUCK;
+            retry_idx = preset_index(retry_presets, n_retry, cfg->retries_before_skip);
+            stuck_idx = preset_index(stuck_presets, n_stuck, cfg->stuck_limit);
+        }
+    }
+
+    ClearScreen(MAIN_SCREEN, COLOR_STD_BG);
+    return start;
 }
