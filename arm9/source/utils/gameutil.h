@@ -31,3 +31,18 @@ u32 GetGoodName(char* name, const char* path, bool quick);
 // it can never collide with the per-region result bits (which are 0..7).
 #define FIXRES_CART_STOPPED 0xFFFFFFFFu
 u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip);
+
+// User-tunable fixer behaviour, set from the pre-flight screen. Defaults match
+// the values that were previously hard-coded.
+typedef struct {
+    bool autoskip;             // skip a bad block automatically at the retry limit
+    bool log;                  // write fix_report_*.txt
+    bool refresh_every_read;   // send a cartridge refresh on every read (slow)
+    u32 retries_before_skip;   // re-reads before offering/auto-skipping a block
+    u32 stuck_limit;           // identical failed reads before a block is unfixable
+} FixerConfig;
+
+#define FIXER_CFG_DEFAULT_RETRIES 500
+#define FIXER_CFG_DEFAULT_STUCK    50
+
+extern FixerConfig fixer_cfg;

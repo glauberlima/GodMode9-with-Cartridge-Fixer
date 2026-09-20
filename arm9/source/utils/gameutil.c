@@ -29,6 +29,14 @@
 int bad_chunks = 0;
 int fixed_chunks = 0;
 
+FixerConfig fixer_cfg = {
+    .autoskip = false,
+    .log = false,
+    .refresh_every_read = false,
+    .retries_before_skip = FIXER_CFG_DEFAULT_RETRIES,
+    .stuck_limit = FIXER_CFG_DEFAULT_STUCK,
+};
+
 // How many consecutive failed (timed out) reads before we declare the cartridge
 // as no longer responding. Each failure already cost one CTR_CMD_TIMEOUT_MS.
 #define FIXER_MAX_READ_FAILS 3
@@ -145,7 +153,8 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
     int was_bad_retries = 0;
     int hash_stuck_times = 0;
     int hash_bad_retries = 0;
-    int hash_stuck_times_max = 50;
+    int hash_stuck_times_max = (int) fixer_cfg.stuck_limit;
+    int hash_stuck_times_max_cap = (int) (fixer_cfg.stuck_limit * 4);
     int read_fails = 0;
 
     while (!hash_match) {
@@ -225,7 +234,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
         if (!hash_match) {
             hash_bad_retries++;
 
-            if (hash_bad_retries > 500) {
+            if (hash_bad_retries > (int) fixer_cfg.retries_before_skip) {
                 if (CheckButton(BUTTON_Y) || autoskip) {
                     ++bad_chunks;
                     if (log) {
@@ -259,7 +268,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
             } else {
                 DrawString(MAIN_SCREEN, "HASH MISMATCH. Attempting refresh.                             ", pos_x, pos_y + 114, COLOR_STD_FONT, COLOR_STD_BG);
                 
-                if (hash_stuck && hash_stuck_times_max < 200)
+                if (hash_stuck && hash_stuck_times_max < hash_stuck_times_max_cap)
                     hash_stuck_times_max += 5;
                 
                 hash_stuck = false;
@@ -274,7 +283,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
         else {
             if (was_bad_retries) {
                 
-                if (was_bad_retries == 5 && hash_stuck_times_max < 200)
+                if (was_bad_retries == 5 && hash_stuck_times_max < hash_stuck_times_max_cap)
                     hash_stuck_times_max += 10;                
                 
                 snprintf(tempstr, 64, "Chunk OK now? Making sure. Retries to go: %d                    ", (int) was_bad_retries);
@@ -294,8 +303,9 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
             DrawString(MAIN_SCREEN, " ", pos_x - 15, pos_y + 114, COLOR_STD_FONT, COLOR_STD_BG);
         }
 
-        if (hash_bad_retries > 500) {
-            DrawString(MAIN_SCREEN, "500 retries exceeded. Hold Y to skip.", pos_x, pos_y + 124, COLOR_STD_FONT, COLOR_STD_BG);
+        if (hash_bad_retries > (int) fixer_cfg.retries_before_skip) {
+            snprintf(tempstr, 64, "%d retries exceeded. Hold Y to skip.", (int) fixer_cfg.retries_before_skip);
+            DrawString(MAIN_SCREEN, tempstr, pos_x, pos_y + 124, COLOR_STD_FONT, COLOR_STD_BG);
         } else {
             DrawString(MAIN_SCREEN, "                                                 ", pos_x, pos_y + 124, COLOR_STD_FONT, COLOR_STD_BG);
         }
