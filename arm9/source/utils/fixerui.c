@@ -258,18 +258,18 @@ bool FixerUI_Preflight(const char* path, FixerConfig* cfg) {
             y += lh;
         }
         if (*retry_labels[retry_idx])
-            snprintf(buf, sizeof(buf), "%sRetry limit before skip    < %u (%s) >",
+            snprintf(buf, sizeof(buf), "%sRetry limit < %u (%s) >",
                 (sel == 3) ? "> " : "  ", (unsigned) retry_presets[retry_idx], retry_labels[retry_idx]);
         else
-            snprintf(buf, sizeof(buf), "%sRetry limit before skip    < %u >",
+            snprintf(buf, sizeof(buf), "%sRetry limit < %u >",
                 (sel == 3) ? "> " : "  ", (unsigned) retry_presets[retry_idx]);
         DrawString(MAIN_SCREEN, buf, x, y, (sel == 3) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG);
         y += lh;
         if (*stuck_labels[stuck_idx])
-            snprintf(buf, sizeof(buf), "%sStuck retry limit          < %u (%s) >",
+            snprintf(buf, sizeof(buf), "%sStuck limit < %u (%s) >",
                 (sel == 4) ? "> " : "  ", (unsigned) stuck_presets[stuck_idx], stuck_labels[stuck_idx]);
         else
-            snprintf(buf, sizeof(buf), "%sStuck retry limit          < %u >",
+            snprintf(buf, sizeof(buf), "%sStuck limit < %u >",
                 (sel == 4) ? "> " : "  ", (unsigned) stuck_presets[stuck_idx]);
         DrawString(MAIN_SCREEN, buf, x, y, (sel == 4) ? COLOR_STD_FONT : COLOR_LIGHTGREY, COLOR_STD_BG);
         y += lh + 4;
@@ -277,18 +277,18 @@ bool FixerUI_Preflight(const char* path, FixerConfig* cfg) {
         const char* h1 = "";
         const char* h2 = "";
         switch (sel) {
-            case 0: h1 = "Skip a bad block automatically once the retry"; h2 = "limit below is reached (otherwise you get a prompt)."; break;
-            case 1: h1 = "Write gm9/out/fix_report_*.txt listing the"; h2 = "offsets of fixed and unfixable blocks."; break;
-            case 2: h1 = "Send a cartridge refresh on EVERY read. Much"; h2 = "slower; only for badly broken cartridges."; break;
-            case 3: h1 = "Re-reads before offering to skip. With autoskip"; h2 = "ON it skips automatically at this limit."; break;
-            case 4: h1 = "Identical failed reads before a block is"; h2 = "declared unfixable."; break;
+            case 0: h1 = "Skip bad blocks automatically at the"; h2 = "retry limit, else you get a prompt."; break;
+            case 1: h1 = "Write gm9/out/fix_report_*.txt with"; h2 = "fixed/unfixable block offsets."; break;
+            case 2: h1 = "Refresh on EVERY read. Much slower;"; h2 = "only for badly broken carts."; break;
+            case 3: h1 = "Re-reads before offering to skip."; h2 = "Autoskip skips at this limit."; break;
+            case 4: h1 = "Identical failed reads before a block"; h2 = "is declared unfixable."; break;
         }
         DrawRectangle(MAIN_SCREEN, 0, y, SCREEN_WIDTH_MAIN, 1, COLOR_DARKGREY); y += 3;
         DrawString(MAIN_SCREEN, h1, x, y, COLOR_LIGHTGREY, COLOR_STD_BG); y += lh;
         DrawString(MAIN_SCREEN, h2, x, y, COLOR_LIGHTGREY, COLOR_STD_BG); y += lh + 4;
 
-        DrawString(MAIN_SCREEN, "UP/DOWN select    LEFT/RIGHT change", x, y, COLOR_STD_FONT, COLOR_STD_BG); y += lh;
-        DrawString(MAIN_SCREEN, "A start     B cancel     X reset defaults", x, y, COLOR_STD_FONT, COLOR_STD_BG);
+        DrawString(MAIN_SCREEN, "UP/DOWN select  LEFT/RIGHT change", x, y, COLOR_STD_FONT, COLOR_STD_BG); y += lh;
+        DrawString(MAIN_SCREEN, "A start  B cancel  X reset defaults", x, y, COLOR_STD_FONT, COLOR_STD_BG);
 
         u32 pad = InputWait(0);
         if (pad & BUTTON_UP) sel = (sel + PF_ROWS - 1) % PF_ROWS;
