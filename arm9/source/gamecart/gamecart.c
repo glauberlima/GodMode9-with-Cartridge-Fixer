@@ -136,7 +136,9 @@ static u32 GetCtrCartSaveSize(CartData* cdata) {
 
     // Load header and ExHeader for first partition
     u8 buffer[0x400];
-    CTR_CmdReadData(ncch_sector, 0x200, 2, buffer);
+    memset(buffer, 0, sizeof(buffer));
+    if (!CTR_CmdReadData(ncch_sector, 0x200, 2, buffer))
+        return 0; // cartridge timed out; do not parse an uninitialized buffer
     NcchHeader* ncch = (NcchHeader*) (void*) buffer;
     if (ValidateNcchHeader(ncch) != 0) {
         return 0;
