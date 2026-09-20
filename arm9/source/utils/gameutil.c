@@ -845,7 +845,7 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
 
     // thorough exefs verification (workaround for Process9)
     if (cart_stopped) { fvx_close(&file); return 2; }
-    if (!ShowProgress(0, 0, path)) return 1;
+    if (!ShowProgress(0, 0, path)) { fvx_close(&file); return 1; }
     FixerUI_SetPhase(FIXERUI_PHASE_EXEFS);
     FixerUI_SetSub(0, 0);
     if ((ncch.size_exthdr > 0) && (ncch.size_exefs > 0) && (memcmp(exthdr.name, "Process9", 8) != 0)) {
