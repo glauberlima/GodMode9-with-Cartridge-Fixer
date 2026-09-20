@@ -852,6 +852,7 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
         fvx_lseek(&file, offset + NCCH_EXTHDR_OFFSET);
         ver_exthdr = CheckFixNcchHash(ncch.hash_exthdr, &file, 0x400, offset, &ncch, NULL, offset + NCCH_EXTHDR_OFFSET, wstr, log, autoskip);
     }
+    if (cart_stopped) { fvx_close(&file); return 2; }
 
     // base hash check for exefs
     if (ncch.size_exefs > 0) {
@@ -859,6 +860,7 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
         fvx_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT));
         ver_exefs = CheckFixNcchHash(ncch.hash_exefs, &file, ncch.size_exefs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT), wstr, log, autoskip);
     }
+    if (cart_stopped) { fvx_close(&file); return 2; }
 
     // base hash check for romfs
     if (ncch.size_romfs > 0) {
