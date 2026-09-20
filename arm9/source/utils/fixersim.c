@@ -165,8 +165,10 @@ int FixerSim_FilterRead(int fr, void* buffer, u32 size, u64 abs_offset) {
             sim_corrupt(buffer, size, sim_attempt);
             return 0;
         case SIM_RECOVER:
+            // Changing seed so the fixer's "hash stuck" heuristic cannot give up
+            // before `fail_reads` attempts have elapsed.
             if (sim_attempt <= sim_fail_reads)
-                sim_corrupt(buffer, size, 0);
+                sim_corrupt(buffer, size, sim_attempt);
             return 0;
         case SIM_FAIL:
             return 1;
