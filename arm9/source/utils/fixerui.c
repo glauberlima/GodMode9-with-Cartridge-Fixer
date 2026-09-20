@@ -73,7 +73,7 @@ static void draw_static(void) {
 
     DrawString(ALT_SCREEN, "B   cancel current block", 4, Y_HELP1, COLOR_LIGHTGREY, COLOR_STD_BG);
     DrawString(ALT_SCREEN, "Y   skip bad block (hold)", 4, Y_HELP2, COLOR_LIGHTGREY, COLOR_STD_BG);
-    DrawString(ALT_SCREEN, "X/SEL  set at launch", 4, Y_HELP3, COLOR_DARKGREY, COLOR_STD_BG);
+    DrawString(ALT_SCREEN, "Config set in pre-flight", 4, Y_HELP3, COLOR_DARKGREY, COLOR_STD_BG);
 }
 
 // Redraw a line only when its text changed (saves the bus and avoids flicker)
@@ -200,7 +200,7 @@ void FixerUI_Tick(void) {
     else if (c_status[0]) {
         c_status[0] = 0;
         DrawRectangle(ALT_SCREEN, 0, Y_HELP3, UI_W, 9, COLOR_STD_BG);
-        DrawString(ALT_SCREEN, "X/SEL  set at launch", 4, Y_HELP3, COLOR_DARKGREY, COLOR_STD_BG);
+        DrawString(ALT_SCREEN, "Config set in pre-flight", 4, Y_HELP3, COLOR_DARKGREY, COLOR_STD_BG);
     }
 
     ui_tick_ms = (u32) timer_msec(tick_start);

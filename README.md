@@ -160,7 +160,7 @@ Compare the number after each repair pass:
    - If the number of bad blocks decreases after each run, the cartridge is improving. Continue the repair process.
    - If the number of bad blocks does not decrease after **2–3 attempts**, those blocks are likely permanent and probably will not improve with additional runs.
 
-1. Enable **Write fix report** in the pre-flight screen (or hold **Y** while selecting) to log progress:
+1. Enable **Write fix report** in the pre-flight screen to log progress:
 
    ```text
    Fix cartridge corruption
