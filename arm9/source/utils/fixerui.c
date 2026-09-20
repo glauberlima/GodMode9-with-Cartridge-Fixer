@@ -66,7 +66,11 @@ static const char* phase_name(FixerUiPhase phase) {
 
 static void draw_static(void) {
     DrawRectangle(ALT_SCREEN, 0, Y_TITLE, UI_W, 13, COLOR_STD_FONT);
+#ifdef FIXER_SIM
+    DrawString(ALT_SCREEN, "CARTRIDGE FIXER (SIM)", 4, Y_TITLE + 2, COLOR_STD_BG, COLOR_STD_FONT);
+#else
     DrawString(ALT_SCREEN, "CARTRIDGE FIXER", 4, Y_TITLE + 2, COLOR_STD_BG, COLOR_STD_FONT);
+#endif
 
     DrawRectangle(ALT_SCREEN, 0, Y_SEP1, UI_W, 1, COLOR_DARKGREY);
     DrawRectangle(ALT_SCREEN, 0, Y_SEP2, UI_W, 1, COLOR_DARKGREY);
