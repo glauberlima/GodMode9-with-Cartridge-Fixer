@@ -222,6 +222,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
         FixerSim_BeginAttempt();
         FixerUI_Heartbeat();
         FixerUI_SetCounts(fixed_chunks, bad_chunks);
+        FixerUI_Tick();
         if (CheckButton(BUTTON_B)) {
             free(buffer);
             force_refresh = false;
@@ -257,6 +258,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
             // Cartridge did not answer within the read timeout. Retry a few
             // times, then conclude it has stopped responding (previously this
             // spun forever and the UI ignored B/Y).
+            FixerUI_Tick(); // redraw after the stall so idle/heartbeat advance
             fvx_lseek(file, offset_back);
             force_refresh = true;
             if (++read_fails >= FIXER_MAX_READ_FAILS) {
