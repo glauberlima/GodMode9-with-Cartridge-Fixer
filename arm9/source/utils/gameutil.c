@@ -13,6 +13,8 @@
 #include "sha.h"
 #include "rtc.h"
 #include "power.h"
+#include "fixersim.h"
+#include "fixerui.h"
 
 // use NCCH crypto defines for everything
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO
@@ -24,6 +26,13 @@
 
 int bad_chunks = 0;
 int fixed_chunks = 0;
+
+// How many consecutive failed (timed out) reads before we declare the cartridge
+// as no longer responding. Each failure already cost one CTR_CMD_TIMEOUT_MS.
+#define FIXER_MAX_READ_FAILS 3
+static bool cart_stopped = false;
+
+extern int refresh_call_every;
 
 u32 GetCbcBlocks(FIL* file, void* buffer, u64 offset, u32 count, u8* titlekey, u8* forced_iv) {
     u8 iv[16] __attribute__((aligned(4)));
@@ -86,6 +95,7 @@ u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, 
 u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, NcchHeader* ncch, ExeFsHeader* exefs, u32 offset_back, char** outstr, bool log, bool autoskip)
 {
     u32 offset_data = fvx_tell(file) - offset_ncch;
+    FixerSim_BeginUnit(offset_back, size_data);
     u8 hash[32] = { 0 };
     u8 lasthash[32] = { 0 };
     char tempstr[64];
@@ -107,8 +117,12 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
     int hash_stuck_times = 0;
     int hash_bad_retries = 0;
     int hash_stuck_times_max = 50;
+    int read_fails = 0;
 
     while (!hash_match) {
+        FixerSim_BeginAttempt();
+        FixerUI_Heartbeat();
+        FixerUI_SetCounts(fixed_chunks, bad_chunks);
         if (CheckButton(BUTTON_B)) {
             free(buffer);
             force_refresh = false;
@@ -118,14 +132,54 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
         sha_init(SHA256_MODE);
 
         u32 buffersize = hash_stuck ? 0x100 : force_refresh ? 0x200 : STD_BUFFER_SIZE;
+        bool read_error = false;
+        bool short_read = false;
 
         for (u32 i = 0; i < size_data; i += buffersize) {
             u32 read_bytes = min(buffersize, size_data - i);
-            UINT bytes_read;
-            fvx_read(file, buffer, read_bytes, &bytes_read);
+            UINT bytes_read = 0;
+            FRESULT fr = fvx_read(file, buffer, read_bytes, &bytes_read);
+            fr = (FRESULT) FixerSim_FilterRead((int) fr, buffer, read_bytes, (u64) offset_back + i);
+            if (fr != FR_OK) {
+                read_error = true;   // device/cartridge error
+                break;
+            }
+            if (bytes_read != read_bytes) {
+                short_read = true;   // request past EOF (e.g. corrupt size field)
+                break;
+            }
             DecryptNcch(buffer, offset_data + i, read_bytes, ncch, exefs);
             sha_update(buffer, read_bytes);
+            FixerUI_Tick();
+            FixerUI_Heartbeat();
         }
+
+        if (read_error) {
+            // Cartridge did not answer within the read timeout. Retry a few
+            // times, then conclude it has stopped responding (previously this
+            // spun forever and the UI ignored B/Y).
+            fvx_lseek(file, offset_back);
+            force_refresh = true;
+            if (++read_fails >= FIXER_MAX_READ_FAILS) {
+                free(buffer);
+                force_refresh = false;
+                cart_stopped = true;
+                return 2;
+            }
+            continue;
+        }
+        if (short_read) {
+            // A short read means the requested range extends past the image
+            // (usually a corrupt header size field), not that the cartridge is
+            // dead. Count it as an unfixable chunk and move on.
+            ++bad_chunks;
+            if (log)
+                *outstr += sprintf(*outstr, "Unfixable: %x\n", (unsigned int) offset_back);
+            free(buffer);
+            force_refresh = false;
+            return 0;
+        }
+        read_fails = 0;
 
         sha_get(hash);
 
@@ -733,6 +787,7 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
         return 1;
     }
 
+    FixerUI_SetPhase(FIXERUI_PHASE_HEADERS);
     DrawString(MAIN_SCREEN, "Fetching ExeFS Header...", 120, 16, COLOR_STD_FONT, COLOR_STD_BG);
 
     // fetch and check ExeFS header
@@ -769,26 +824,34 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
 
     // base hash check for extheader
     if (ncch.size_exthdr > 0) {
+        FixerUI_SetPhase(FIXERUI_PHASE_EXT_HASH);
         fvx_lseek(&file, offset + NCCH_EXTHDR_OFFSET);
         ver_exthdr = CheckFixNcchHash(ncch.hash_exthdr, &file, 0x400, offset, &ncch, NULL, offset + NCCH_EXTHDR_OFFSET, wstr, log, autoskip);
     }
 
     // base hash check for exefs
     if (ncch.size_exefs > 0) {
+        FixerUI_SetPhase(FIXERUI_PHASE_EXEFS_HASH);
         fvx_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT));
         ver_exefs = CheckFixNcchHash(ncch.hash_exefs, &file, ncch.size_exefs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT), wstr, log, autoskip);
     }
 
     // base hash check for romfs
     if (ncch.size_romfs > 0) {
+        FixerUI_SetPhase(FIXERUI_PHASE_ROMFS_HASH);
         fvx_lseek(&file, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT));
         ver_romfs = CheckFixNcchHash(ncch.hash_romfs, &file, ncch.size_romfs_hash * NCCH_MEDIA_UNIT, offset, &ncch, NULL, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT), wstr, log, autoskip);
     }
 
     // thorough exefs verification (workaround for Process9)
+    if (cart_stopped) { fvx_close(&file); return 2; }
     if (!ShowProgress(0, 0, path)) return 1;
+    FixerUI_SetPhase(FIXERUI_PHASE_EXEFS);
+    FixerUI_SetSub(0, 0);
     if ((ncch.size_exthdr > 0) && (ncch.size_exefs > 0) && (memcmp(exthdr.name, "Process9", 8) != 0)) {
         for (u32 i = 0; i < 10; i++) {
+            FixerUI_SetPhase(FIXERUI_PHASE_EXEFS);
+            FixerUI_SetSub(i + 1, 10);
             DrawString(MAIN_SCREEN, "Verifying EXEFS", 120, 16, COLOR_STD_FONT, COLOR_STD_BG);
             PrintChunkCounts();
             PrintPartitionName(contentNum, offset);
@@ -798,6 +861,7 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
             if (!exefile->size) continue;
             fvx_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + exefile->offset);
             ver_exefs |= CheckFixNcchHash(hash, &file, exefile->size, offset, &ncch, &exefs, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT) + 0x200 + exefile->offset, wstr, log, autoskip);
+            if (cart_stopped) { fvx_close(&file); return 2; }
         }
     }
 
@@ -879,12 +943,15 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
             block_log = ivfc.log_lvl3;
             fvx_lseek(&file, offset + offset_add);
             for (u32 i = 0; i < n_blocks; i++) {
+                FixerUI_SetPhase(FIXERUI_PHASE_ROMFS);
+                FixerUI_SetSub(i + 1, n_blocks);
                 DrawString(MAIN_SCREEN, "Running thorough ROMFS refresh.", 120, 16, COLOR_STD_FONT, COLOR_STD_BG);
                 PrintChunkCounts();
                 PrintPartitionName(contentNum, offset);
 
                 ver_romfs = CheckFixNcchHash(lvl2_data + (i*0x20), &file, 1 << block_log, offset, &ncch, NULL, offset + offset_add, wstr, log, autoskip);
 
+                if (cart_stopped) { free(masterhash); free(lvl1_data); free(lvl2_data); fvx_close(&file); return 2; }
                 if (ver_romfs) {
                     break;
                 }
@@ -1126,6 +1193,10 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
     char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, path, 32, 8);
 
+    FixerSim_LoadConfig();
+    if (FixerSim_Enabled())
+        ShowPrompt(false, "%s\nSIM MODE: %s", pathstr, FixerSim_ModeName());
+
     // load NCSD header
     if (LoadNcsdHeader(&ncsd, path) != 0) {
         ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_NOT_NCSD_FILE);
@@ -1134,12 +1205,17 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
     
     bad_chunks = 0;
     fixed_chunks = 0;
+    cart_stopped = false;
+
+    FixerUI_Begin(path);
+    FixerUI_SetFlags(autoskip, log, refresh_call_every == 0);
+    FixerUI_SetCounts(0, 0);
 
     char* dumpstr = NULL;
     char* wstr = NULL;
     if (log) {
         dumpstr = malloc(STD_BUFFER_SIZE);
-        if (!dumpstr) return 1;
+        if (!dumpstr) { FixerUI_End(); return 1; }
         wstr = dumpstr;
         wstr += sprintf(wstr, "CORRUPTION FIX LOG ON %s\n", path);
     }
@@ -1156,7 +1232,11 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
 
         ret = AttemptFixNcch(i, path, offset, size, (log ? &wstr : NULL), autoskip);
 
-        if (ret == 2) {
+        if (cart_stopped) {
+            ShowPrompt(false, "%s\nCartridge stopped responding.\nIt may be failing or dead.\nReseat it and try again.", pathstr);
+            ret = 3;
+            break;
+        } else if (ret == 2) {
             ShowPrompt(false, "Fix failed. Essential parts of the image are bad.\nTry the following: select this file again,\nhold SELECT and try to copy to gm/out.\nRun this again afterwards.");
             break;
         } else if (ret != 0) {
@@ -1166,6 +1246,8 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
     }
 
     if (log) {
+        wstr += sprintf(wstr, "ui_max_tick_ms=%u\n", (unsigned) FixerUI_MaxTickMs());
+
         DsTime dstime;
         get_dstime(&dstime);
 
@@ -1183,6 +1265,7 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
         free(dumpstr);
     }
 
+    FixerUI_End();
     return ret;
 }
 

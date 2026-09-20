@@ -1652,11 +1652,15 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
                 return 0;
         }
 
-        if (AttemptFixNcsdFile(file_path, log, autoskip) == 0) {
+        u32 fixres = AttemptFixNcsdFile(file_path, log, autoskip);
+        if (fixres == 0) {
             if (!bad_chunks)
                 ShowPrompt(false, "Finished.\n\n%d fixed chunks,\n0 unfixable chunks.\n\nRun verify.", fixed_chunks);
             else
                 ShowPrompt(false, "Finished.\n\n%d fixed chunks,\n%d unfixable chunks.", fixed_chunks, bad_chunks);
+        }
+        else if (fixres == 3) {
+            // "cartridge stopped responding" message was already shown
         }
         else
             ShowPrompt(false, "Corruption fixer failed.");
