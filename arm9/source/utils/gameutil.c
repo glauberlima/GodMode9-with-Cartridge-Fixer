@@ -1296,8 +1296,11 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
     TruncateString(pathstr, path, 32, 8);
 
     FixerSim_LoadConfig();
-    if (FixerSim_Enabled())
-        ShowPrompt(false, "%s\nSIM MODE: %s", pathstr, FixerSim_ModeName());
+    {
+        const char* simstatus = FixerSim_Status();
+        if (*simstatus)
+            ShowPrompt(false, "%s\nSIM BUILD: %s", pathstr, simstatus);
+    }
 
     // load NCSD header
     if (LoadNcsdHeader(&ncsd, path) != 0) {

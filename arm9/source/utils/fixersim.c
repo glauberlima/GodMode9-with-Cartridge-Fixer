@@ -40,6 +40,7 @@ static u64 sim_size = 0;
 static u32 sim_fail_reads = 0;
 static u32 sim_delay_ms = 0;
 static u32 sim_attempt = 0;
+static bool sim_cfg_found = false;
 
 static const char* sim_mode_name(SimMode mode) {
     switch (mode) {
@@ -95,9 +96,11 @@ void FixerSim_LoadConfig(void) {
     sim_mode = SIM_OFF;
     sim_offset = sim_size = 0;
     sim_fail_reads = sim_delay_ms = 0;
+    sim_cfg_found = false;
 
     if (fvx_open(&file, SIM_CFG_PATH, FA_READ | FA_OPEN_EXISTING) != FR_OK)
         return;
+    sim_cfg_found = true;
     if (fvx_read(&file, buf, sizeof(buf) - 1, &br) != FR_OK) br = 0;
     fvx_close(&file);
     buf[br] = 0;
@@ -132,6 +135,13 @@ bool FixerSim_Enabled(void) {
 }
 
 const char* FixerSim_ModeName(void) {
+    return sim_mode_name(sim_mode);
+}
+
+const char* FixerSim_Status(void) {
+    if (!sim_cfg_found) return "config NOT FOUND";
+    if (sim_mode == SIM_OFF) return "found, mode=off";
+    if (sim_size == 0) return "found, size=0 (inactive)";
     return sim_mode_name(sim_mode);
 }
 

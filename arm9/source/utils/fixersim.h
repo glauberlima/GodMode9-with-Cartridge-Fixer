@@ -10,6 +10,7 @@
 void FixerSim_LoadConfig(void);
 bool FixerSim_Enabled(void);
 const char* FixerSim_ModeName(void);
+const char* FixerSim_Status(void);
 void FixerSim_BeginUnit(u64 offset, u32 size);
 void FixerSim_BeginAttempt(void);
 int FixerSim_FilterRead(int fr, void* buffer, u32 size, u64 abs_offset);
@@ -17,6 +18,7 @@ int FixerSim_FilterRead(int fr, void* buffer, u32 size, u64 abs_offset);
 static inline void FixerSim_LoadConfig(void) {}
 static inline bool FixerSim_Enabled(void) { return false; }
 static inline const char* FixerSim_ModeName(void) { return ""; }
+static inline const char* FixerSim_Status(void) { return ""; }
 static inline void FixerSim_BeginUnit(u64 offset, u32 size) { (void) offset; (void) size; }
 static inline void FixerSim_BeginAttempt(void) {}
 static inline int FixerSim_FilterRead(int fr, void* buffer, u32 size, u64 abs_offset) {
