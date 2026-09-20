@@ -34,7 +34,12 @@ static inline bool ctr_timeout_hit(CtrTimeout* t, u32 count) {
         t->base = timer_start();
         return false;
     }
-    return (timer_msec(t->base) >= CTR_CMD_TIMEOUT_MS);
+    u64 ms = timer_msec(t->base);
+    if (ms > 1000000) { // timer was reset / wrapped: re-arm, never false-trigger
+        t->base = timer_start();
+        return false;
+    }
+    return (ms >= CTR_CMD_TIMEOUT_MS);
 }
 
 bool CTR_SetSecKey(u32 value) {
