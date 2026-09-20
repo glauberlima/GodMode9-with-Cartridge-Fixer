@@ -122,6 +122,9 @@ void FixerSim_LoadConfig(void) {
         if (!eol) break;
         p = eol + 1;
     }
+
+    // Bound the simulated stall so a bad config cannot hang for days.
+    if (sim_delay_ms > 60000) sim_delay_ms = 60000;
 }
 
 bool FixerSim_Enabled(void) {
