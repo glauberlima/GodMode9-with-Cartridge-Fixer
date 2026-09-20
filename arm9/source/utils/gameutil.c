@@ -37,6 +37,67 @@ FixerConfig fixer_cfg = {
     .stuck_limit = FIXER_CFG_DEFAULT_STUCK,
 };
 
+static u32 fixercfg_atoi(const char* s) {
+    u32 v = 0;
+    while ((*s >= '0') && (*s <= '9')) { v = v * 10 + (u32) (*s - '0'); s++; }
+    return v;
+}
+
+void FixerCfg_Load(FixerConfig* cfg) {
+    cfg->autoskip = false;
+    cfg->log = false;
+    cfg->refresh_every_read = false;
+    cfg->retries_before_skip = FIXER_CFG_DEFAULT_RETRIES;
+    cfg->stuck_limit = FIXER_CFG_DEFAULT_STUCK;
+
+    FIL file;
+    char buf[256];
+    UINT br = 0;
+    if (fvx_open(&file, FIXER_CFG_PATH, FA_READ | FA_OPEN_EXISTING) != FR_OK)
+        return;
+    if (fvx_read(&file, buf, sizeof(buf) - 1, &br) != FR_OK) br = 0;
+    fvx_close(&file);
+    buf[br] = 0;
+
+    char* p = buf;
+    while (*p) {
+        char* eol = strchr(p, '\n');
+        if (eol) *eol = 0;
+        char* eq = strchr(p, '=');
+        if (eq) {
+            *eq = 0;
+            char* k = p;
+            char* v = eq + 1;
+            if (!strcmp(k, "autoskip"))      cfg->autoskip = (fixercfg_atoi(v) != 0);
+            else if (!strcmp(k, "log"))      cfg->log = (fixercfg_atoi(v) != 0);
+            else if (!strcmp(k, "refresh"))  cfg->refresh_every_read = (fixercfg_atoi(v) != 0);
+            else if (!strcmp(k, "retries"))  cfg->retries_before_skip = fixercfg_atoi(v);
+            else if (!strcmp(k, "stuck"))    cfg->stuck_limit = fixercfg_atoi(v);
+        }
+        if (!eol) break;
+        p = eol + 1;
+    }
+
+    // A hand-edited file must not set absurd values.
+    if (cfg->retries_before_skip < 1) cfg->retries_before_skip = FIXER_CFG_DEFAULT_RETRIES;
+    if (cfg->stuck_limit < 1) cfg->stuck_limit = FIXER_CFG_DEFAULT_STUCK;
+}
+
+void FixerCfg_Save(const FixerConfig* cfg) {
+    char buf[128];
+    int n = snprintf(buf, sizeof(buf), "autoskip=%d\nlog=%d\nrefresh=%d\nretries=%u\nstuck=%u\n",
+        cfg->autoskip ? 1 : 0, cfg->log ? 1 : 0, cfg->refresh_every_read ? 1 : 0,
+        (unsigned) cfg->retries_before_skip, (unsigned) cfg->stuck_limit);
+    if (n <= 0)
+        return;
+    FIL file;
+    if (fvx_open(&file, FIXER_CFG_PATH, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+        return;
+    UINT bw = 0;
+    fvx_write(&file, buf, (UINT) n, &bw);
+    fvx_close(&file);
+}
+
 // How many consecutive failed (timed out) reads before we declare the cartridge
 // as no longer responding. Each failure already cost one CTR_CMD_TIMEOUT_MS.
 #define FIXER_MAX_READ_FAILS 3

@@ -148,7 +148,8 @@ Selecting **Fix cartridge corruption** opens a pre-flight screen where the behav
 
 Controls: **UP/DOWN** select, **LEFT/RIGHT** change/toggle, **A** start, **B** cancel,
 **X** reset to defaults. During the fix, **B** cancels the current block and holding **Y** skips a
-block once the retry limit is exceeded.
+block once the retry limit is exceeded. The chosen settings are remembered in
+`gm9/out/fixer.cfg` and reused next time.
 
 ## Tracking Repair Progress
 

@@ -1630,16 +1630,12 @@ u32 FileHandlerMenu(char* current_path, u32* cursor, u32* scroll, PaneData** pan
             return 0;
         }
 
-        // Start from the built-in defaults; the pre-flight screen is the single
-        // source of truth for the fixer settings.
-        fixer_cfg.autoskip = false;
-        fixer_cfg.log = false;
-        fixer_cfg.refresh_every_read = false;
-        fixer_cfg.retries_before_skip = FIXER_CFG_DEFAULT_RETRIES;
-        fixer_cfg.stuck_limit = FIXER_CFG_DEFAULT_STUCK;
-
+        // Start from the saved settings (falling back to built-in defaults); the
+        // pre-flight screen is the single source of truth.
+        FixerCfg_Load(&fixer_cfg);
         if (!FixerUI_Preflight(file_path, &fixer_cfg))
             return 0;
+        FixerCfg_Save(&fixer_cfg);
 
         refresh_call_every = fixer_cfg.refresh_every_read ? 0 : 10000;
 

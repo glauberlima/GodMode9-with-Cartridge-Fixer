@@ -241,6 +241,9 @@ bool FixerUI_Preflight(const char* path, FixerConfig* cfg) {
 
     int retry_idx = preset_index(retry_presets, n_retry, cfg->retries_before_skip);
     int stuck_idx = preset_index(stuck_presets, n_stuck, cfg->stuck_limit);
+    // Snap to the nearest preset so the value shown is the value applied.
+    cfg->retries_before_skip = retry_presets[retry_idx];
+    cfg->stuck_limit = stuck_presets[stuck_idx];
     int sel = 0;
     bool start = false;
 
