@@ -329,7 +329,8 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool c
         for (u32 i = 0; i < count; i += max_read) {
             // Cart_Dummy();
             // Cart_Dummy();
-            CTR_CmdReadData(sector + i, 0x200, min(max_read, count - i), buff);
+            if (!CTR_CmdReadData(sector + i, 0x200, min(max_read, count - i), buff))
+                return 1; // cartridge stopped responding (command timed out)
             buff += max_read * 0x200;
         }
 
