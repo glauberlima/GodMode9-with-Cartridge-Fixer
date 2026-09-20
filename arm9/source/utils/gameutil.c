@@ -16,6 +16,8 @@
 #include "fixersim.h"
 #include "fixerui.h"
 
+#include <stdarg.h>
+
 // use NCCH crypto defines for everything
 #define CRYPTO_DECRYPT  NCCH_NOCRYPTO
 #define CRYPTO_ENCRYPT  NCCH_STDCRYPTO
@@ -33,6 +35,28 @@ int fixed_chunks = 0;
 static bool cart_stopped = false;
 
 extern int refresh_call_every;
+
+// End of the fix-report buffer while logging (NULL otherwise). Makes appends
+// stop cleanly instead of running past the allocation.
+static char* log_end = NULL;
+
+static void log_append(char** wstr, const char* fmt, ...) {
+    if (!wstr || !*wstr || !log_end)
+        return;
+    size_t avail = (size_t) (log_end - *wstr);
+    if (!avail)
+        return;
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(*wstr, avail, fmt, ap);
+    va_end(ap);
+    if (n < 0)
+        return;
+    if ((size_t) n >= avail)
+        *wstr = log_end; // truncated: stop appending
+    else
+        *wstr += n;
+}
 
 u32 GetCbcBlocks(FIL* file, void* buffer, u64 offset, u32 count, u8* titlekey, u8* forced_iv) {
     u8 iv[16] __attribute__((aligned(4)));
@@ -174,7 +198,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
             // dead. Count it as an unfixable chunk and move on.
             ++bad_chunks;
             if (log)
-                *outstr += sprintf(*outstr, "Unfixable: %x\n", (unsigned int) offset_back);
+                log_append(outstr, "Unfixable: %x\n", (unsigned int) offset_back);
             free(buffer);
             force_refresh = false;
             return 0;
@@ -200,7 +224,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
                 if (CheckButton(BUTTON_Y) || autoskip) {
                     ++bad_chunks;
                     if (log) {
-                        *outstr += sprintf(*outstr, "Skipped: %x\n", (unsigned int) offset_back);
+                        log_append(outstr, "Skipped: %x\n", (unsigned int) offset_back);
                     }
                     free(buffer);
                     force_refresh = false;
@@ -220,7 +244,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
                     free(buffer);
 
                     if (log) {
-                        *outstr += sprintf(*outstr, "Unfixable: %x\n", (unsigned int) offset_back);
+                        log_append(outstr, "Unfixable: %x\n", (unsigned int) offset_back);
                     }
 
                     force_refresh = false;
@@ -281,7 +305,7 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
         ++fixed_chunks;  
         
         if (log)
-            *outstr += sprintf(*outstr, "%x\n", (unsigned int) offset_back);
+            log_append(outstr, "%x\n", (unsigned int) offset_back);
     }
 
     force_refresh = false;
@@ -1213,11 +1237,13 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
 
     char* dumpstr = NULL;
     char* wstr = NULL;
+    log_end = NULL;
     if (log) {
         dumpstr = malloc(STD_BUFFER_SIZE);
         if (!dumpstr) { FixerUI_End(); return 1; }
+        log_end = dumpstr + STD_BUFFER_SIZE - 1;
         wstr = dumpstr;
-        wstr += sprintf(wstr, "CORRUPTION FIX LOG ON %s\n", path);
+        log_append(&wstr, "CORRUPTION FIX LOG ON %s\n", path);
     }
 
     u32 ret = 0;
@@ -1246,7 +1272,7 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
     }
 
     if (log) {
-        wstr += sprintf(wstr, "ui_max_tick_ms=%u\n", (unsigned) FixerUI_MaxTickMs());
+        log_append(&wstr, "ui_max_tick_ms=%u\n", (unsigned) FixerUI_MaxTickMs());
 
         DsTime dstime;
         get_dstime(&dstime);
@@ -1263,6 +1289,7 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
         FileSetData(fileout, dumpstr, wstr - dumpstr, 0, true);
 
         free(dumpstr);
+        log_end = NULL;
     }
 
     FixerUI_End();
