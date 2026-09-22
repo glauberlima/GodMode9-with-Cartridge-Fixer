@@ -37,6 +37,8 @@ u32 GetCartInfoString(char* info, size_t info_size, CartData* cdata);
 u32 SetSecureAreaEncryption(bool encrypted);
 u32 InitCartRead(CartData* cdata);
 u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool card2_blanking);
+// True when the last cart read failed because the cartridge stopped responding.
+bool CartReadFailed(void);
 u32 ReadCartBytes(void* buffer, u64 offset, u64 count, CartData* cdata, bool card2_blanking);
 u32 ReadCartPrivateHeader(void* buffer, u64 offset, u64 count, CartData* cdata);
 u32 ReadCartInfo(u8* buffer, u64 offset, u64 count, CartData* cdata);

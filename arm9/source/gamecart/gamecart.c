@@ -136,7 +136,9 @@ static u32 GetCtrCartSaveSize(CartData* cdata) {
 
     // Load header and ExHeader for first partition
     u8 buffer[0x400];
-    CTR_CmdReadData(ncch_sector, 0x200, 2, buffer);
+    memset(buffer, 0, sizeof(buffer));
+    if (!CTR_CmdReadData(ncch_sector, 0x200, 2, buffer))
+        return 0; // cartridge timed out; do not parse an uninitialized buffer
     NcchHeader* ncch = (NcchHeader*) (void*) buffer;
     if (ValidateNcchHeader(ncch) != 0) {
         return 0;
@@ -308,8 +310,18 @@ u32 InitCartRead(CartData* cdata) {
     return 0;
 }
 
+// Set when a cart read times out, so callers can tell a dead cartridge apart
+// from a bad image (e.g. to show "cartridge stopped responding" instead of a
+// generic failure).
+static bool cart_read_failed = false;
+
+bool CartReadFailed(void) {
+    return cart_read_failed;
+}
+
 u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool card2_blanking) {
     u8* buffer8 = (u8*) buffer;
+    cart_read_failed = false;
     if (!CART_INSERTED) return 1;
     // header
     const u32 header_sectors = 0x4000/0x200;
@@ -329,7 +341,10 @@ u32 ReadCartSectors(void* buffer, u32 sector, u32 count, CartData* cdata, bool c
         for (u32 i = 0; i < count; i += max_read) {
             // Cart_Dummy();
             // Cart_Dummy();
-            CTR_CmdReadData(sector + i, 0x200, min(max_read, count - i), buff);
+            if (!CTR_CmdReadData(sector + i, 0x200, min(max_read, count - i), buff)) {
+                cart_read_failed = true; // cartridge stopped responding (command timed out)
+                return 1;
+            }
             buff += max_read * 0x200;
         }
 
