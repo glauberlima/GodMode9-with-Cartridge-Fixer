@@ -163,7 +163,7 @@ u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, 
     u32 offset_ncch = fvx_tell(file);
     UINT btr;
 
-    if (fvx_read(file, ncch, sizeof(NcchHeader), &btr) != FR_OK) return 1;
+    if ((fvx_read(file, ncch, sizeof(NcchHeader), &btr) != FR_OK) || (btr != sizeof(NcchHeader))) return 1;
     if (nocrypto) {
         ncch->flags[3] = 0x00;
         ncch->flags[7] = (ncch->flags[7] & ~0x21) | 0x04;
@@ -173,7 +173,7 @@ u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, 
     if (exthdr) {
         if (!ncch->size_exthdr) return 1;
         fvx_lseek(file, offset_ncch + NCCH_EXTHDR_OFFSET);
-        if ((fvx_read(file, exthdr, NCCH_EXTHDR_SIZE, &btr) != FR_OK) ||
+        if ((fvx_read(file, exthdr, NCCH_EXTHDR_SIZE, &btr) != FR_OK) || (btr != NCCH_EXTHDR_SIZE) ||
             (DecryptNcch((u8*) exthdr, NCCH_EXTHDR_OFFSET, NCCH_EXTHDR_SIZE, ncch, NULL) != 0))
             return 1;
     }
@@ -182,7 +182,7 @@ u32 GetNcchHeaders(NcchHeader* ncch, NcchExtHeader* exthdr, ExeFsHeader* exefs, 
         if (!ncch->size_exefs) return 1;
         u32 offset_exefs = offset_ncch + (ncch->offset_exefs * NCCH_MEDIA_UNIT);
         fvx_lseek(file, offset_exefs);
-        if ((fvx_read(file, exefs, sizeof(ExeFsHeader), &btr) != FR_OK) ||
+        if ((fvx_read(file, exefs, sizeof(ExeFsHeader), &btr) != FR_OK) || (btr != sizeof(ExeFsHeader)) ||
             (DecryptNcch((u8*) exefs, ncch->offset_exefs * NCCH_MEDIA_UNIT, sizeof(ExeFsHeader), ncch, NULL) != 0) ||
             (ValidateExeFsHeader(exefs, ncch->size_exefs * NCCH_MEDIA_UNIT) != 0))
             return 1;
@@ -855,9 +855,9 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
 {
     bool cryptofix = false;
     bool log = (wstr != NULL);
-    NcchHeader ncch;
-    NcchExtHeader exthdr;
-    ExeFsHeader exefs;
+    NcchHeader ncch = { 0 };
+    NcchExtHeader exthdr = { 0 };
+    ExeFsHeader exefs = { 0 };
     FIL file;
 
     char pathstr[UTF_BUFFER_BYTESIZE(32)];
@@ -911,6 +911,11 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
             fvx_lseek(&file, offset);
             GetNcchHeaders(&ncch, NULL, &exefs, &file, cryptofix);
         }
+        if (CartReadFailed()) {
+            fvx_close(&file);
+            cart_stopped = true;
+            return 2;
+        }
     }
 
     DrawString(MAIN_SCREEN, "Fetching ExtHeader...", 120, 16, COLOR_STD_FONT, COLOR_STD_BG);
@@ -918,6 +923,11 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
     // fetch and check ExtHeader
     fvx_lseek(&file, offset);
     if (ncch.size_exthdr && (GetNcchHeaders(&ncch, &exthdr, NULL, &file, cryptofix) != 0)) {
+        if (CartReadFailed()) {
+            fvx_close(&file);
+            cart_stopped = true;
+            return 2;
+        }
         if (!offset) ShowPrompt(false, "%s\n%s", pathstr, STR_ERROR_MISSING_EXTHEADER);
         fvx_close(&file);
         return 2;
