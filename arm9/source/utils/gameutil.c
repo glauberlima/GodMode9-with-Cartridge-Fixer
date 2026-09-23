@@ -79,9 +79,12 @@ void FixerCfg_Load(FixerConfig* cfg) {
         p = eol + 1;
     }
 
-    // A hand-edited file must not set absurd values.
+    // A hand-edited file must not set absurd values (also keeps stuck_limit*4
+    // from overflowing downstream).
     if (cfg->retries_before_skip < 1) cfg->retries_before_skip = FIXER_CFG_DEFAULT_RETRIES;
     if (cfg->stuck_limit < 1) cfg->stuck_limit = FIXER_CFG_DEFAULT_STUCK;
+    if (cfg->retries_before_skip > FIXER_CFG_MAX_RETRIES) cfg->retries_before_skip = FIXER_CFG_MAX_RETRIES;
+    if (cfg->stuck_limit > FIXER_CFG_MAX_STUCK) cfg->stuck_limit = FIXER_CFG_MAX_STUCK;
 }
 
 void FixerCfg_Save(const FixerConfig* cfg) {

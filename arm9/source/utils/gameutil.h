@@ -46,6 +46,8 @@ typedef struct {
 
 #define FIXER_CFG_DEFAULT_RETRIES 500
 #define FIXER_CFG_DEFAULT_STUCK    50
+#define FIXER_CFG_MAX_RETRIES      100000
+#define FIXER_CFG_MAX_STUCK        10000
 
 // Saved pre-flight settings (remembered across runs).
 #define FIXER_CFG_PATH OUTPUT_PATH "/fixer.cfg"
