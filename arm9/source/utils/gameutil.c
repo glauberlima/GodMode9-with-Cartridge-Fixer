@@ -281,7 +281,9 @@ u32 CheckFixNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, Nc
             force_refresh = false;
             return 0;
         }
-        read_fails = 0;
+        // note: read_fails is intentionally cumulative (not reset on a
+        // successful read) so a cartridge that alternates good/bad reads still
+        // aborts after enough total failures.
 
         sha_get(hash);
 
