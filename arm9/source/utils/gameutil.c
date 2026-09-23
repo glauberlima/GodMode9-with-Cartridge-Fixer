@@ -407,8 +407,16 @@ u32 CheckNcchHash(u8* expected, FIL* file, u32 size_data, u32 offset_ncch, NcchH
     sha_init(SHA256_MODE);
     for (u32 i = 0; i < size_data; i += STD_BUFFER_SIZE) {
         u32 read_bytes = min(STD_BUFFER_SIZE, (size_data - i));
-        UINT bytes_read;
-        fvx_read(file, buffer, read_bytes, &bytes_read);
+        UINT bytes_read = 0;
+        FRESULT fr = fvx_read(file, buffer, read_bytes, &bytes_read);
+        if ((fr != FR_OK) || (bytes_read != read_bytes)) {
+            // Cartridge stopped responding (or a short read). Flag it so the
+            // verify path can abort with a clear message instead of hashing a
+            // stale buffer for every remaining region.
+            free(buffer);
+            cart_stopped = true;
+            return 1;
+        }
         DecryptNcch(buffer, offset_data + i, read_bytes, ncch, exefs);
         sha_update(buffer, read_bytes);
     }
@@ -1107,13 +1115,15 @@ u32 AttemptFixNcch(int contentNum, const char* path, u32 offset, u32 size, char*
 u32 VerifyNcchFile(const char* path, u32 offset, u32 size, bool sig_check) {
     static bool cryptofix_always = false;
     bool cryptofix = false;
-    NcchHeader ncch;
-    NcchExtHeader exthdr;
-    ExeFsHeader exefs;
+    NcchHeader ncch = { 0 };
+    NcchExtHeader exthdr = { 0 };
+    ExeFsHeader exefs = { 0 };
     FIL file;
 
     char pathstr[UTF_BUFFER_BYTESIZE(32)];
     TruncateString(pathstr, path, 32, 8);
+
+    cart_stopped = false;
 
     // open file, get NCCH, ExeFS header
     if (fvx_open(&file, path, FA_READ | FA_OPEN_EXISTING) != FR_OK)
@@ -1191,18 +1201,21 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size, bool sig_check) {
         fvx_lseek(&file, offset + NCCH_EXTHDR_OFFSET);
         ver_exthdr = CheckNcchHash(ncch.hash_exthdr, &file, 0x400, offset, &ncch, NULL);
     }
+    if (cart_stopped) { fvx_close(&file); return 2; }
 
     // base hash check for exefs
     if (ncch.size_exefs > 0) {
         fvx_lseek(&file, offset + (ncch.offset_exefs * NCCH_MEDIA_UNIT));
         ver_exefs = CheckNcchHash(ncch.hash_exefs, &file, ncch.size_exefs_hash * NCCH_MEDIA_UNIT, offset, &ncch, &exefs);
     }
+    if (cart_stopped) { fvx_close(&file); return 2; }
 
     // base hash check for romfs
     if (ncch.size_romfs > 0) {
         fvx_lseek(&file, offset + (ncch.offset_romfs * NCCH_MEDIA_UNIT));
         ver_romfs = CheckNcchHash(ncch.hash_romfs, &file, ncch.size_romfs_hash * NCCH_MEDIA_UNIT, offset, &ncch, NULL);
     }
+    if (cart_stopped) { fvx_close(&file); return 2; }
 
     // thorough exefs verification (workaround for Process9)
     if (!ShowProgress(0, 0, path)) return 1;
@@ -1215,6 +1228,7 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size, bool sig_check) {
             ver_exefs = CheckNcchHash(hash, &file, exefile->size, offset, &ncch, &exefs);
         }
     }
+    if (cart_stopped) { fvx_close(&file); return 2; }
 
     // thorough romfs verification
     if (!ver_romfs && (ncch.size_romfs > 0)) {
@@ -1302,6 +1316,8 @@ u32 VerifyNcchFile(const char* path, u32 offset, u32 size, bool sig_check) {
         if (lvl1_data) free(lvl1_data);
         if (lvl2_data) free(lvl2_data);
     }
+
+    if (cart_stopped) { fvx_close(&file); return 2; }
 
     if (!offset && (ver_exthdr|ver_exefs|ver_romfs)) { // verification summary
         ShowPrompt(false, STR_PATH_NCCH_VERIFICATION_FAILED_INFO, pathstr,
@@ -1449,6 +1465,10 @@ u32 VerifyNcsdFile(const char* path, bool sig_check) {
         u32 size = partition->size * NCSD_MEDIA_UNIT;
         if (!size) continue;
         if (VerifyNcchFile(path, offset, size, sig_check) != 0) {
+            if (cart_stopped) {
+                ShowPrompt(false, "%s\nCartridge stopped responding.\nIt may be failing or dead.\nReseat it and try again.", pathstr);
+                return 2;
+            }
             ShowPrompt(false, STR_PATH_CONTENT_N_SIZE_AT_OFFSET_VERIFICATION_FAILED,
                 pathstr, i, size, offset);
             return 1;
