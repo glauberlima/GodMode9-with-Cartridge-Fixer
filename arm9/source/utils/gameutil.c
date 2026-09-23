@@ -1375,7 +1375,7 @@ u32 AttemptFixNcsdFile(const char* path, bool log, bool autoskip) {
             ShowPrompt(false, "Fix failed. Essential parts of the image are bad.\nTry the following: select this file again,\nhold SELECT and try to copy to gm/out.\nRun this again afterwards.");
             break;
         } else if (ret != 0) {
-            ShowPrompt(false, "%s\nContent%lu (%08lX@%08lX):\nFixing failed.\nReseat the cartridge and try again.", pathstr, i, size, offset);
+            ShowPrompt(false, "%s\nContent%lu (%08lX@%08lX):\nFixing aborted.", pathstr, i, size, offset);
             break;
         }
     }

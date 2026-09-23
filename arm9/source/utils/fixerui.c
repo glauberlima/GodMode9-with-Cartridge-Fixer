@@ -75,7 +75,7 @@ static void draw_static(void) {
     DrawRectangle(ALT_SCREEN, 0, Y_SEP1, UI_W, 1, COLOR_DARKGREY);
     DrawRectangle(ALT_SCREEN, 0, Y_SEP2, UI_W, 1, COLOR_DARKGREY);
 
-    DrawString(ALT_SCREEN, "B   cancel current block", 4, Y_HELP1, COLOR_LIGHTGREY, COLOR_STD_BG);
+    DrawString(ALT_SCREEN, "B   abort fixing", 4, Y_HELP1, COLOR_LIGHTGREY, COLOR_STD_BG);
     DrawString(ALT_SCREEN, "Y   skip bad block (hold)", 4, Y_HELP2, COLOR_LIGHTGREY, COLOR_STD_BG);
     DrawString(ALT_SCREEN, "Config set in pre-flight", 4, Y_HELP3, COLOR_DARKGREY, COLOR_STD_BG);
 }
